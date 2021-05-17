@@ -124,6 +124,8 @@ def dqn_learing(
     ######
 
     # YOUR CODE HERE
+    Q = q_func(input_arg, num_actions)
+    Q_target = q_func(input_arg, num_actions)
 
     ######
 
@@ -178,8 +180,10 @@ def dqn_learing(
         # may not yet have been initialized (but of course, the first step
         # might as well be random, since you haven't trained your net...)
         #####
+        replay_buffer.store_frame(last_obs)
+        encoded_observation = replay_buffer.encode_recent_observation()
 
-        # YOUR CODE HERE
+        obs, reward, done, info = env.step(action)
 
         #####
 
@@ -218,7 +222,7 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
-
+            print('')
             #####
 
         ### 4. Log progress and keep track of statistics
