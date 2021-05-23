@@ -180,10 +180,16 @@ def dqn_learing(
         # may not yet have been initialized (but of course, the first step
         # might as well be random, since you haven't trained your net...)
         #####
-        replay_buffer.store_frame(last_obs)
-        encoded_observation = replay_buffer.encode_recent_observation()
-
+        idx = replay_buffer.store_frame(last_obs)
+        encoded_obs = replay_buffer.encode_recent_observation()
+        action = select_epilson_greedy_action(Q, encoded_obs, t) #Bar: Not sure if Q is the model? What about Q Target? 
         obs, reward, done, info = env.step(action)
+        replay_buffer.store_effect(idx,action,reward,done)
+        if(done):
+            last_obs = env.reset()
+        else:
+            last_obs = obs
+
 
         #####
 
@@ -222,6 +228,7 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
+            replay_buffer.sample(batch_size=batch_size)
             print('')
             #####
 
