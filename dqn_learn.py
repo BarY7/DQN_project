@@ -229,7 +229,13 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
+            #
             # Alpha (learning rate) from the q function update isn't present in our code
+            # Move to GPU if possible
+            # done flag in loop
+            # clipping the error between -1 and 1 
+            # backward the error meaning? 
+            #
             # Q.cuda()
             num_param_updates += + 1
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
@@ -238,7 +244,7 @@ def dqn_learing(
                 obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
                 predicted_reward = Q(obs).data[0][act]
                 target_reward = Q_target(next_obs).data.max(1)[0].detach().numpy()
-                loss = loss_fn(reward + gamma * target_reward, predicted_reward)
+                loss = (-1) * loss_fn(reward + gamma * target_reward, predicted_reward) # CLIP! 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
