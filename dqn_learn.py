@@ -235,8 +235,8 @@ def dqn_learing(
             for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
                 obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
                 predicted_reward = Q(obs).data[0][act]
-                target_reward = Q_target(next_obs).data.max(1)[1].detach().numpy()
-                loss = loss_fn(reward + target_reward, predicted_reward_tensor)
+                target_reward = Q_target(next_obs).data.max(1)[0].detach().numpy()
+                loss = loss_fn(reward + target_reward, predicted_reward)
                 Q.zero_grad()
                 loss.backward()
                 with torch.nograd():
