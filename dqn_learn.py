@@ -229,21 +229,22 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
+            # Alpha (learning rate) from the q function update isn't present in our code
             # Q.cuda()
+            num_param_updates += + 1
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
             loss_fn = nn.MSELoss()
             for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
                 obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
                 predicted_reward = Q(obs).data[0][act]
                 target_reward = Q_target(next_obs).data.max(1)[0].detach().numpy()
-                loss = loss_fn(reward + target_reward, predicted_reward)
-                Q.zero_grad()
+                loss = loss_fn(reward + gamma * target_reward, predicted_reward)
+                optimizer.zero_grad()
                 loss.backward()
-                with torch.nograd():
-                    for param in Q.parameters():
-                        #param -= 
-                print("")
-            gamma = None
+                optimizer.step()
+            if(num_param_updates % target_update_freq == 0):
+                Q.state_dict('./')
+                Q_target.load_state_dict('./')
             #####
 
         ### 4. Log progress and keep track of statistics
