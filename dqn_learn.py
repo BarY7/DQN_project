@@ -116,7 +116,8 @@ def dqn_learing(
         if sample > eps_threshold:
             obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
             # Use volatile = True if variable is only used in inference mode, i.e. don’t save the history
-            return model(Variable(obs, volatile=True)).data.max(1)[1].cpu()
+            with torch.no_grad():
+                return model(Variable(obs, volatile=True)).data.max(1)[1].cpu()
         else:
             return torch.IntTensor([[random.randrange(num_actions)]])
 
@@ -228,7 +229,23 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
-            replay_buffer.sample(batch_size=batch_size)
+            # Q.cuda()
+            obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
+            loss_fn = nn.MSELoss()
+            for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
+                obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
+                predicted_reward_tensor = Q(obs).data[0][act]
+                target_reward = Q_target(obs).detach().numpy()[0][1]
+                loss = loss_fn(predicted_reward_tensor,target_reward)
+                Q.zero_grad()
+                loss.backward()
+                with torch.nograd():
+                    for param in Q.parameters():
+                        #param -= 
+                print("")
+            Q.parameters()
+            
+            gamma = Q(obs_batch[0], act_batch[0])
             print('')
             #####
 
