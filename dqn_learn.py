@@ -243,8 +243,7 @@ def dqn_learing(
                 loss.backward()
                 optimizer.step()
             if(num_param_updates % target_update_freq == 0):
-                Q.state_dict('./')
-                Q_target.load_state_dict('./')
+                Q_target.load_state_dict(Q.state_dict())
             #####
 
         ### 4. Log progress and keep track of statistics
