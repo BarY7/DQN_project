@@ -234,8 +234,8 @@ def dqn_learing(
             loss_fn = nn.MSELoss()
             for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
                 obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
-                predicted_reward_tensor = Q(obs).data[0][act]
-                target_reward = Q_target(obs).detach().numpy()[0][1]
+                predicted_reward = Q(obs).data[0][act]
+                target_reward = Q_target(obs).detach().numpy()[0][act]
                 loss = loss_fn(predicted_reward_tensor,target_reward)
                 Q.zero_grad()
                 loss.backward()
@@ -243,10 +243,7 @@ def dqn_learing(
                     for param in Q.parameters():
                         #param -= 
                 print("")
-            Q.parameters()
-            
-            gamma = Q(obs_batch[0], act_batch[0])
-            print('')
+            gamma = None
             #####
 
         ### 4. Log progress and keep track of statistics
