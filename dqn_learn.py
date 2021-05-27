@@ -117,7 +117,7 @@ def dqn_learing(
             obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
             # Use volatile = True if variable is only used in inference mode, i.e. don’t save the history
             with torch.no_grad():
-                return model(Variable(obs, volatile=True)).data.max(1)[1].cpu()
+                return model(Variable(obs)).data.max(1)[1].cpu()
         else:
             return torch.IntTensor([[random.randrange(num_actions)]])
 
@@ -230,23 +230,31 @@ def dqn_learing(
 
             # YOUR CODE HERE
             #
-            # Alpha (learning rate) from the q function update isn't present in our code
+            # Alpha (learning rate) from the q function update isn't present in our code -- its in OptimizerSpec in main.
             # Move to GPU if possible
-            # done flag in loop
-            # clipping the error between -1 and 1 
+            # done flag in loop   ---- SKIPPED IF DONE IS TRUE
+            # clipping the error between -1 and 1   -- OK
             # backward the error meaning? 
+            # Suggestion for changing parameters - change exploration scehdule (main)
             #
             # Q.cuda()
             num_param_updates += + 1
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
             loss_fn = nn.MSELoss()
             for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
-                obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
-                predicted_reward = Q(obs).data[0][act]
-                target_reward = Q_target(next_obs).data.max(1)[0].detach().numpy()
-                loss = (-1) * loss_fn(reward + gamma * target_reward, predicted_reward) # CLIP! 
+                if(done == 1.0):
+                    continue
+                obs = Variable(torch.from_numpy(obs, ).type(dtype).unsqueeze(0) / 255.0, requires_grad=True)
+                next_obs = Variable(torch.from_numpy(next_obs).type(dtype).unsqueeze(0) / 255.0, requires_grad=False)
+                predicted_reward = Q(obs)[0][act]
+                target_reward = Q_target(next_obs).data.max(1)[0].detach()
+                loss = loss_fn(reward + gamma * target_reward, predicted_reward).clamp(-1, 1) * (-1.0)
+                
                 optimizer.zero_grad()
-                loss.backward()
+                # should be current.backward(d_error.data.unsqueeze(1))
+                # but it crashes on misfitting dims
+                predicted_reward.backward(loss.data)
+                
                 optimizer.step()
             if(num_param_updates % target_update_freq == 0):
                 Q_target.load_state_dict(Q.state_dict())
