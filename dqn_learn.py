@@ -183,8 +183,11 @@ def dqn_learing(
         #####
         idx = replay_buffer.store_frame(last_obs)
         encoded_obs = replay_buffer.encode_recent_observation()
-        action = select_epilson_greedy_action(Q, encoded_obs, t) 
-        obs, reward, done, info = env.step(action)
+        if(t>learning_starts):
+            action = select_epilson_greedy_action(Q, encoded_obs, t) 
+        else:
+            action = random.randrange(num_actions)            
+        obs, reward, done, _ = env.step(action)
         replay_buffer.store_effect(idx,action,reward,done)
         if(done):
             last_obs = env.reset()
@@ -238,24 +241,29 @@ def dqn_learing(
             # Suggestion for changing parameters - change exploration scehdule (main)
             #
             # Q.cuda()
-            num_param_updates += + 1
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
-            loss_fn = nn.MSELoss()
-            states = torch.from_numpy(obs_batch).float().to()
-            actions = torch.from_numpy(act_batch).long().to()
-            rewards = torch.from_numpy(reward_batch).float().to()
-            next_states = torch.from_numpy(next_obs_batch).float().to()
-            dones = torch.from_numpy(done_mask).float().to()
+            states = Variable(torch.from_numpy(obs_batch).type(dtype) / 255.0)
+            actions = Variable(torch.from_numpy(act_batch).long())
+            rewards = Variable(torch.from_numpy(reward_batch).float())
+            next_states = Variable(torch.from_numpy(next_obs_batch).type(dtype) / 255.0)
+            not_dones = Variable(torch.from_numpy(1-done_mask).type(dtype))
+            if USE_CUDA:
+                states = states.cuda()
+                act_batch = act_batch.cuda()
+                reward_batch = reward_batch.cuda()
+                next_states = next_states.cuda()
             Q.train()
             Q_target.eval()
-            predicted_rewards = Q(states).gather(1,actions.unsqueeze(1)) #Q(s,a)
-            with torch.no_grad():
-                labels_next = Q_target(next_states).detach().max(1)[0].unsqueeze(1) #Q_target(s,a)
-            labels = rewards.unsqueeze(1) + (gamma * labels_next*((1-dones).unsqueeze(1))) #r + Q_target
-            mse_error = loss_fn(predicted_rewards, labels).clamp(-1,1) * (-1.0)
+            predicted_rewards = Q(states).gather(1,actions.unsqueeze(1)) #Q(s,a)            
+            next_max_Q = Q_target(next_states).detach().max(1)[0] #.unsqueeze(1) #Q_target(s,a)
+            next_Q_values = not_dones * next_max_Q
+            target_Q_values = rewards + (gamma * next_Q_values) #r + Q_target
+            bellman_error = target_Q_values - predicted_rewards
+            clipped_bellman_error = bellman_error.clamp(-1,1) * (-1.0)
             optimizer.zero_grad()
-            mse_error.backward()
+            predicted_rewards.backward(clipped_bellman_error.data.unsqueeze(1))
             optimizer.step()
+            num_param_updates += + 1
             if(num_param_updates % target_update_freq == 0):
                 Q_target.load_state_dict(Q.state_dict())
 
