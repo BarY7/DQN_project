@@ -57,4 +57,4 @@ if __name__ == '__main__':
     seed = 0 # Use a seed of zero (you may want to randomize the seed!)
     env = get_env(task, seed)
 
-    main(env, 1000000)
+    main(env, 4000000)

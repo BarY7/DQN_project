@@ -183,7 +183,7 @@ def dqn_learing(
         #####
         idx = replay_buffer.store_frame(last_obs)
         encoded_obs = replay_buffer.encode_recent_observation()
-        action = select_epilson_greedy_action(Q, encoded_obs, t) #Bar: Not sure if Q is the model? What about Q Target? 
+        action = select_epilson_greedy_action(Q, encoded_obs, t) 
         obs, reward, done, info = env.step(action)
         replay_buffer.store_effect(idx,action,reward,done)
         if(done):
@@ -241,23 +241,40 @@ def dqn_learing(
             num_param_updates += + 1
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
             loss_fn = nn.MSELoss()
-            for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
-                if(done == 1.0):
-                    continue
-                obs = Variable(torch.from_numpy(obs, ).type(dtype).unsqueeze(0) / 255.0, requires_grad=True)
-                next_obs = Variable(torch.from_numpy(next_obs).type(dtype).unsqueeze(0) / 255.0, requires_grad=False)
-                predicted_reward = Q(obs)[0][act]
-                target_reward = Q_target(next_obs).data.max(1)[0].detach()
-                loss = loss_fn(reward + gamma * target_reward, predicted_reward).clamp(-1, 1) * (-1.0)
-                
-                optimizer.zero_grad()
-                # should be current.backward(d_error.data.unsqueeze(1))
-                # but it crashes on misfitting dims
-                predicted_reward.backward(loss.data)
-                
-                optimizer.step()
+            states = torch.from_numpy(obs_batch).float().to()
+            actions = torch.from_numpy(act_batch).long().to()
+            rewards = torch.from_numpy(reward_batch).float().to()
+            next_states = torch.from_numpy(next_obs_batch).float().to()
+            dones = torch.from_numpy(done_mask).float().to()
+            Q.train()
+            Q_target.eval()
+            predicted_rewards = Q(states).gather(1,actions.unsqueeze(1)) #Q(s,a)
+            with torch.no_grad():
+                labels_next = Q_target(next_states).detach().max(1)[0].unsqueeze(1) #Q_target(s,a)
+            labels = rewards.unsqueeze(1) + (gamma * labels_next*((1-dones).unsqueeze(1))) #r + Q_target
+            mse_error = loss_fn(predicted_rewards, labels).clamp(-1,1) * (-1.0)
+            optimizer.zero_grad()
+            mse_error.backward()
+            optimizer.step()
             if(num_param_updates % target_update_freq == 0):
                 Q_target.load_state_dict(Q.state_dict())
+
+            # for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
+            #     if(done == 1.0):
+            #         continue
+            #     obs = Variable(torch.from_numpy(obs, ).type(dtype).unsqueeze(0) / 255.0, requires_grad=True)
+            #     next_obs = Variable(torch.from_numpy(next_obs).type(dtype).unsqueeze(0) / 255.0, requires_grad=False)
+            #     current_Q = Q(obs)
+            #     predicted_reward = Variable(current_Q[0][act].unsqueeze(0), requires_grad=True)
+            #     target_reward = Q_target(next_obs).data.max(1)[0]
+            #     loss = loss_fn(reward + gamma * target_reward, predicted_reward).clamp(-1, 1) * (-1.0)
+                
+            #     optimizer.zero_grad()
+            #     # should be current.backward(d_error.data.unsqueeze(1))
+            #     # but it crashes on misfitting dims
+            #     predicted_reward.backward(loss.data.unsqueeze(1))
+                
+            #     optimizer.step()
             #####
 
         ### 4. Log progress and keep track of statistics
