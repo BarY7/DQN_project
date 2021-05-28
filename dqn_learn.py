@@ -116,7 +116,8 @@ def dqn_learing(
         if sample > eps_threshold:
             obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
             # Use volatile = True if variable is only used in inference mode, i.e. don’t save the history
-            return model(Variable(obs, volatile=True)).data.max(1)[1].cpu()
+            with torch.no_grad():
+                return model(Variable(obs)).data.max(1)[1].cpu()
         else:
             return torch.IntTensor([[random.randrange(num_actions)]])
 
@@ -124,6 +125,8 @@ def dqn_learing(
     ######
 
     # YOUR CODE HERE
+    Q = q_func(input_arg, num_actions)
+    Q_target = q_func(input_arg, num_actions)
 
     ######
 
@@ -178,8 +181,16 @@ def dqn_learing(
         # may not yet have been initialized (but of course, the first step
         # might as well be random, since you haven't trained your net...)
         #####
+        idx = replay_buffer.store_frame(last_obs)
+        encoded_obs = replay_buffer.encode_recent_observation()
+        action = select_epilson_greedy_action(Q, encoded_obs, t) 
+        obs, reward, done, info = env.step(action)
+        replay_buffer.store_effect(idx,action,reward,done)
+        if(done):
+            last_obs = env.reset()
+        else:
+            last_obs = obs
 
-        # YOUR CODE HERE
 
         #####
 
@@ -218,7 +229,52 @@ def dqn_learing(
             #####
 
             # YOUR CODE HERE
+            #
+            # Alpha (learning rate) from the q function update isn't present in our code -- its in OptimizerSpec in main.
+            # Move to GPU if possible
+            # done flag in loop   ---- SKIPPED IF DONE IS TRUE
+            # clipping the error between -1 and 1   -- OK
+            # backward the error meaning? 
+            # Suggestion for changing parameters - change exploration scehdule (main)
+            #
+            # Q.cuda()
+            num_param_updates += + 1
+            obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
+            loss_fn = nn.MSELoss()
+            states = torch.from_numpy(obs_batch).float().to()
+            actions = torch.from_numpy(act_batch).long().to()
+            rewards = torch.from_numpy(reward_batch).float().to()
+            next_states = torch.from_numpy(next_obs_batch).float().to()
+            dones = torch.from_numpy(done_mask).float().to()
+            Q.train()
+            Q_target.eval()
+            predicted_rewards = Q(states).gather(1,actions.unsqueeze(1)) #Q(s,a)
+            with torch.no_grad():
+                labels_next = Q_target(next_states).detach().max(1)[0].unsqueeze(1) #Q_target(s,a)
+            labels = rewards.unsqueeze(1) + (gamma * labels_next*((1-dones).unsqueeze(1))) #r + Q_target
+            mse_error = loss_fn(predicted_rewards, labels).clamp(-1,1) * (-1.0)
+            optimizer.zero_grad()
+            mse_error.backward()
+            optimizer.step()
+            if(num_param_updates % target_update_freq == 0):
+                Q_target.load_state_dict(Q.state_dict())
 
+            # for obs,act,reward,next_obs,done in zip(obs_batch,act_batch,reward_batch,next_obs_batch,done_mask):
+            #     if(done == 1.0):
+            #         continue
+            #     obs = Variable(torch.from_numpy(obs, ).type(dtype).unsqueeze(0) / 255.0, requires_grad=True)
+            #     next_obs = Variable(torch.from_numpy(next_obs).type(dtype).unsqueeze(0) / 255.0, requires_grad=False)
+            #     current_Q = Q(obs)
+            #     predicted_reward = Variable(current_Q[0][act].unsqueeze(0), requires_grad=True)
+            #     target_reward = Q_target(next_obs).data.max(1)[0]
+            #     loss = loss_fn(reward + gamma * target_reward, predicted_reward).clamp(-1, 1) * (-1.0)
+                
+            #     optimizer.zero_grad()
+            #     # should be current.backward(d_error.data.unsqueeze(1))
+            #     # but it crashes on misfitting dims
+            #     predicted_reward.backward(loss.data.unsqueeze(1))
+                
+            #     optimizer.step()
             #####
 
         ### 4. Log progress and keep track of statistics
