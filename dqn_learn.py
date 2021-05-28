@@ -125,8 +125,8 @@ def dqn_learing(
     ######
 
     # YOUR CODE HERE
-    Q = q_func(input_arg, num_actions)
-    Q_target = q_func(input_arg, num_actions)
+    Q = q_func(input_arg, num_actions).type(dtype)
+    Q_target = q_func(input_arg, num_actions).type(dtype)
 
     ######
 
@@ -244,7 +244,7 @@ def dqn_learing(
             obs_batch, act_batch, reward_batch, next_obs_batch, done_mask = replay_buffer.sample(batch_size=batch_size)
             states = Variable(torch.from_numpy(obs_batch).type(dtype) / 255.0)
             actions = Variable(torch.from_numpy(act_batch).long())
-            rewards = Variable(torch.from_numpy(reward_batch).float())
+            rewards = Variable(torch.from_numpy(reward_batch).type(dtype))
             next_states = Variable(torch.from_numpy(next_obs_batch).type(dtype) / 255.0)
             not_dones = Variable(torch.from_numpy(1-done_mask).type(dtype))
             if USE_CUDA:
