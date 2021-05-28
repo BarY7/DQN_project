@@ -258,7 +258,7 @@ def dqn_learing(
             next_max_Q = Q_target(next_states).detach().max(1)[0] #.unsqueeze(1) #Q_target(s,a)
             next_Q_values = not_dones * next_max_Q
             target_Q_values = rewards + (gamma * next_Q_values) #r + Q_target
-            bellman_error = target_Q_values - predicted_rewards
+            bellman_error = target_Q_values - predicted_rewards.squeeze(1)
             clipped_bellman_error = bellman_error.clamp(-1,1) * (-1.0)
             optimizer.zero_grad()
             predicted_rewards.backward(clipped_bellman_error.data.unsqueeze(1))
