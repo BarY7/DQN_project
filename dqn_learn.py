@@ -249,8 +249,8 @@ def dqn_learing(
             not_dones = Variable(torch.from_numpy(1-done_mask).type(dtype))
             if USE_CUDA:
                 states = states.cuda()
-                act_batch = act_batch.cuda()
-                reward_batch = reward_batch.cuda()
+                actions = actions.cuda()
+                rewards = rewards.cuda()
                 next_states = next_states.cuda()
             Q.train()
             Q_target.eval()
