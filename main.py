@@ -29,7 +29,7 @@ def main(env, num_timesteps):
         kwargs=dict(lr=LEARNING_RATE, alpha=ALPHA, eps=EPS),
     )
 
-    exploration_schedule = LinearSchedule(1000000, 0.1)
+    exploration_schedule = LinearSchedule(1000000, 0.01)
 
     dqn_learing(
         env=env,
@@ -57,4 +57,4 @@ if __name__ == '__main__':
     seed = 0 # Use a seed of zero (you may want to randomize the seed!)
     env = get_env(task, seed)
 
-    main(env, 4000000)
+    main(env, 8000000)
